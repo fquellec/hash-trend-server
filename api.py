@@ -7,10 +7,12 @@ import redis
 from rq import Queue
 from make_report import make_report
 from worker import conn
+from flask_cors import CORS
 
 DEBUG_MODE = True
 
 app = Flask(__name__)
+CORS(app)
 q = Queue('main', connection=conn)
 
 @app.route("/")
