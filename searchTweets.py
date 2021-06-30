@@ -9,7 +9,11 @@ def saveTweet(row, filename, perm='a'):
         writer = csv.writer(f)
         writer.writerow(row)
 
-def searchTweets(query):
+def searchTweets(query, min_tweets, max_tweets):
+    # connect to db
+    client = pymongo.MongoClient(credentials.MONGO_URI)
+    db = client.hashTrend
+    queries = db.queries
 
     # Create target Directory if don't exist
     if not os.path.exists('results'):
@@ -141,9 +145,28 @@ def searchTweets(query):
             saveTweet(row, FILENAME)
 
             counter += 1
-            print(f"tweets fetched: {counter}\r", end="")    
+            print(f"tweets fetched: {counter}\r", end="")  
 
+            if df.shape[0] > max_tweets:
+                # Update db
+                myquery = { "query": query }
+                newvalues = { "$set": { "status": "Too much tweets retrieved", "code": 204, } }
+                queries.update_one(myquery, newvalues)
+                return None, False  
+
+        # Update db
+        myquery = { "query": query }
+        newvalues = { "$set": { "status": f"{counter} tweets retrieved", "code": 202, } }
+        queries.update_one(myquery, newvalues)
 
     print("Total fetched : " + str(counter))
 
-    return pd.read_csv(FILENAME)
+    df = pd.read_csv(FILENAME)
+    if df.shape[0] < min_tweets:
+        # Update db
+        myquery = { "query": query }
+        newvalues = { "$set": { "status": "Not enough tweets retrieved", "code": 204, } }
+        queries.update_one(myquery, newvalues)
+        return None, False  
+
+    return df, True

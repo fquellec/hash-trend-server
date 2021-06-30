@@ -9,7 +9,7 @@ from make_report import make_report
 from worker import conn
 from flask_cors import CORS
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 app = Flask(__name__)
 CORS(app)
@@ -28,22 +28,20 @@ def handleQuery():
     db_entry = queries.find_one({'query': query})
 
     if db_entry is not None:
-        if db_entry['code'] == 200:
-            return db_entry['result'], db_entry['code']
-        else:
-            return db_entry['status'], db_entry['code']
+        return db_entry, db_entry['code']
+
     else:     
         query_db = {
             "query": query,
-            "status": "Fetching Tweets...",
+            "status": "Queuing job...",
             "code": 202,
             "result": {},
             "date": datetime.datetime.utcnow()
         }
 
         queries.insert_one(query_db)
-        job = q.enqueue(make_report, args=(query,), job_timeout=500)
-        return query_db['status'], query_db['code']
+        job = q.enqueue(make_report, args=(query,), job_timeout=6000)
+        return query_db, query_db['code']
 
 # For testing only
 @app.route("/db")

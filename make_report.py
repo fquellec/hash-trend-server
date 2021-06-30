@@ -4,24 +4,23 @@ import credentials
 import pandas as pd
 
 MIN_NB_TWEETS = 10
-MAX_NB_TWEETS = 10000
+MAX_NB_TWEETS = 20000
 
 def make_report(query):
+	client = pymongo.MongoClient(credentials.MONGO_URI)
+	db = client.hashTrend
+	queries = db.queries
 
-	print(f"Start fetching Tweets for keyword {query}")
-	df = searchTweets(query)
-	df.date = pd.to_datetime(df.date)
+	# Update job status on db
+	myquery = { "query": query }
+	newvalues = { "$set": { "status": "Start fetching tweets", } }
+	queries.update_one(myquery, newvalues)
 
-	if df.shape[0] < MIN_NB_TWEETS:
-		# Update db
-		client = pymongo.MongoClient(credentials.MONGO_URI)
-		db = client.hashTrend
-		queries = db.queries
-		myquery = { "query": query }
-		newvalues = { "$set": { "status": "Not enough tweets retrieved", "code": 204, } }
-		queries.update_one(myquery, newvalues)
+	df, ok = searchTweets(query, MIN_NB_TWEETS, MAX_NB_TWEETS)
+	if not ok:
 		return 204
 
+	df.date = pd.to_datetime(df.date)
 
 	# Compute volume of tweets by hours
 	volumes = df.resample('h', on='date').count()[['tweet_id']].reset_index().sort_values(by='date')
@@ -43,5 +42,6 @@ def make_report(query):
 	db = client.hashTrend
 	queries = db.queries
 	myquery = { "query": query }
-	newvalues = { "$set": { "result": result, "code": 200, "status": "Finished!"} }
+	newvalues = { "$set": { "result": result, "code": 200, "status": "Done"} }
 	queries.update_one(myquery, newvalues)
+	return 200
