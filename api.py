@@ -25,7 +25,7 @@ def handleQuery():
     client = pymongo.MongoClient(credentials.MONGO_URI)
     db = client.hashTrend
     queries = db.queries
-    db_entry = queries.find_one({'query': query})
+    db_entry = queries.find_one({'query': query}, {'_id': False})
 
     if db_entry is not None:
         return db_entry, db_entry['code']
@@ -49,7 +49,7 @@ def handleDB():
     client = pymongo.MongoClient(credentials.MONGO_URI)
     db = client.hashTrend
     queries = db.queries
-    db_entries = queries.find({})
+    db_entries = queries.find({},{'_id': False})
     return str(list(db_entries))
 
 
