@@ -39,8 +39,9 @@ def make_report(query):
         volumes = volumes.rename(columns={'date':'name', 'tweet_id':'value'}).to_dict(orient="records")
 
         # Top tweet
-        top_tweet = df[df.retweet_from_user_id.isnull() & df.reply_to_tweet_id.isnull()].sort_values(by=['retweets', 'likes', 'followers'], ascending=False).head(10).tweet_id.to_list()
-
+        top_tweet = df[(df.retweet_from_user_id == "") & (df.reply_to_tweet_id == "")].sort_values(by=['retweets', 'likes', 'followers'], ascending=False).head(10).tweet_id.to_list()
+        top_tweet
+        
         # Top Actors
         df.followers = pd.to_numeric(df.followers)
         df.likes = pd.to_numeric(df.followers)
@@ -51,9 +52,9 @@ def make_report(query):
             'retweets':'sum',
             'tweet_id':'count'
             })
-        top_actors = top_actors.rename(columns={'tweet_id':'nb_tweets'}).sort_values(by=['nb_tweets', 'followers', 'retweets'], ascending=False)
+        top_actors = top_actors.rename(columns={'tweet_id':'nb_tweets'}).sort_values(by=['nb_tweets', 'followers', 'retweets'], ascending=False).reset_index()
         top_actors = top_actors.to_dict(orient="records")
-
+        top_actors
         # Hashtags
         hashtags_freq = []
 
