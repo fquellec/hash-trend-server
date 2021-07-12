@@ -42,6 +42,9 @@ def make_report(query):
         top_tweet = df[df.retweet_from_user_id.isnull() & df.reply_to_tweet_id.isnull()].sort_values(by=['retweets', 'likes', 'followers'], ascending=False).head(10).tweet_id.to_list()
 
         # Top Actors
+        df.followers = pd.to_numeric(df.followers)
+        df.likes = pd.to_numeric(df.followers)
+        df.retweets = pd.to_numeric(df.followers)
         top_actors = df.groupby('user_name').agg({
             'followers': 'mean',
             'likes':'sum',
@@ -75,11 +78,11 @@ def make_report(query):
             analysis = TextBlob(clean_tweet(text))
             # set sentiment
             if analysis.sentiment.polarity > 0:
-                return 1
+                return "Positive"
             elif analysis.sentiment.polarity == 0:
-                return 0
+                return "Neutral"
             else:
-                return -1
+                return "Negative"
 
         df['sentiment'] = df.text.apply(lambda t: get_tweet_sentiment(t))
         sentiments = df.groupby('sentiment').count().tweet_id.to_dict()
@@ -194,8 +197,7 @@ def make_report(query):
                 'graph': graph,
                 #'location': None,
         }
-
-
+        result
         print("report generated")
 
         # Update db

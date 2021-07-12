@@ -162,7 +162,7 @@ def searchTweets(query, min_tweets, max_tweets):
         queries.update_one(myquery, newvalues)
 
     #print("Total fetched : " + str(counter))
-    df = pd.read_csv(FILENAME)
+    df = pd.read_csv(FILENAME, dtype=object, na_filter=False)
     if df.shape[0] < min_tweets:
         # Update db
         myquery = { "query": query }
