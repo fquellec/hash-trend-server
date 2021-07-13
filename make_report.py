@@ -9,10 +9,10 @@ import ast # Convert string list to list
 import json
 import networkx as nx
 from networkx.readwrite import json_graph
+import return_codes
 
-
-MIN_NB_TWEETS = 10
-MAX_NB_TWEETS = 50000
+MIN_NB_TWEETS = 100
+MAX_NB_TWEETS = 20000
 
 def make_report(query):
         client = pymongo.MongoClient(credentials.MONGO_URI)
@@ -21,18 +21,27 @@ def make_report(query):
 
         # Update job status on db
         myquery = { "query": query }
-        newvalues = { "$set": { "status": "Start fetching tweets", } }
+        newvalues = { "$set": { "status": "Start fetching tweets", "code": return_codes.PROCESSING} }
         queries.update_one(myquery, newvalues)
-        print("search")
+        
         print("query: ", query)
-        df, ok = searchTweets(query, MIN_NB_TWEETS, MAX_NB_TWEETS)
+
+        try:
+            df, ok = searchTweets(query, MIN_NB_TWEETS, MAX_NB_TWEETS)
+        except e:
+            myquery = { "query": query }
+            newvalues = { "$set": { "status": e, "code": return_codes.ERROR} }
+            queries.update_one(myquery, newvalues)
+            return return_codes.ERROR
+
         df.date = pd.to_datetime(df.date)
 
         print("search done", ok)
-        if not ok:
-            return 204
-
         print("total", df.shape[0])
+
+        myquery = { "query": query }
+        newvalues = { "$set": { "status": "Generating report...", "code": return_codes.PROCESSING} }
+        queries.update_one(myquery, newvalues)
 
         # Compute volume of tweets by hours
         volumes = df.resample('h', on='date').count()[['tweet_id']].reset_index().sort_values(by='date')
@@ -55,6 +64,7 @@ def make_report(query):
         top_actors = top_actors.rename(columns={'tweet_id':'nb_tweets'}).sort_values(by=['nb_tweets', 'followers', 'retweets'], ascending=False).reset_index()
         top_actors = top_actors.to_dict(orient="records")
         top_actors
+
         # Hashtags
         hashtags_freq = []
 
@@ -206,9 +216,16 @@ def make_report(query):
         db = client.hashTrend
         queries = db.queries
         myquery = { "query": query }
-        newvalues = { "$set": { "result": result, "code": 200, "status": "Done"} }
+        if not ok:
+            code = return_codes.PARTIAL_RESULT
+            status = "Not all tweets have been retrieved"
+        else:
+            code = return_codes.FINISH
+            status = "Done"
+
+        newvalues = { "$set": { "result": result, "code": code, "status": status} }
         queries.update_one(myquery, newvalues)
 
         print("report updated")
 
-        return 200
+        return code

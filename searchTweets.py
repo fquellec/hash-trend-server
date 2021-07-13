@@ -4,7 +4,7 @@ import csv
 import credentials
 import pandas as pd
 import pymongo
-import gc
+import return_codes
 
 def saveTweet(row, filename, perm='a'):
     with open(filename, perm) as f:
@@ -152,13 +152,13 @@ def searchTweets(query, min_tweets, max_tweets):
             if counter > max_tweets:
                 # Update db
                 myquery = { "query": query }
-                newvalues = { "$set": { "status": "Too much tweets retrieved", "code": 204, } }
+                newvalues = { "$set": { "status": "Not all tweets have been retrieved", "code": return_codes.PARTIAL_RESULT, } }
                 queries.update_one(myquery, newvalues)
-                return None, False
+                return pd.read_csv(FILENAME, dtype=object, na_filter=False), False
 
         # Update db
         myquery = { "query": query }
-        newvalues = { "$set": { "status": f"{counter} tweets retrieved", "code": 202, } }
+        newvalues = { "$set": { "status": f"{counter} tweets retrieved", "code": return_codes.PROCESSING, } }
         queries.update_one(myquery, newvalues)
 
     #print("Total fetched : " + str(counter))
@@ -166,7 +166,7 @@ def searchTweets(query, min_tweets, max_tweets):
     if df.shape[0] < min_tweets:
         # Update db
         myquery = { "query": query }
-        newvalues = { "$set": { "status": "Not enough tweets retrieved", "code": 204, } }
+        newvalues = { "$set": { "status": "Not enough tweets retrieved", "code": return_codes.NO_CONTENT, } }
         queries.update_one(myquery, newvalues)
         return None, False
 
