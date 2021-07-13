@@ -28,12 +28,14 @@ def make_report(query):
 
         try:
             df, ok = searchTweets(query, MIN_NB_TWEETS, MAX_NB_TWEETS)
-        except e:
+        except Exception e:
             myquery = { "query": query }
-            newvalues = { "$set": { "status": e, "code": return_codes.ERROR} }
+            newvalues = { "$set": { "status": str(e), "code": return_codes.ERROR} }
             queries.update_one(myquery, newvalues)
             return return_codes.ERROR
 
+        if df is None:
+            return return_codes.NO_CONTENT
         df.date = pd.to_datetime(df.date)
 
         print("search done", ok)

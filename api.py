@@ -18,7 +18,7 @@ q = Queue('main', connection=conn)
 @app.route("/")
 def handleQuery():
     query = request.args.get('query')
-    print(query)
+    print("API receive", query)
     if query is None:
         return "please add a 'query' parameter"
 
@@ -40,17 +40,7 @@ def handleQuery():
         }
         ret = query_db.copy()
         queries.insert_one(query_db)
-
-        def report_success(job, connection, result, *args, **kwargs):
-            print("success", job.__dict__["exc_info"])
-        def report_failure(job, connection, type, value, traceback):
-            print("failure", job.__dict__["exc_info"])
-            print("traceback", traceback)
-            myquery = { "query": query }
-            newvalues = { "$set": { "status": traceback, "code": 204 } }
-            queries.update_one(myquery, newvalues)
-
-        job = q.enqueue(make_report, args=(query,), job_timeout='10m', on_failure=report_failure, on_success=report_success)
+        job = q.enqueue(make_report, args=(query,), job_timeout='10m')
 
         return ret, 200
 

@@ -58,8 +58,8 @@ def searchTweets(query, min_tweets, max_tweets):
     api = tweepy.API(auth, wait_on_rate_limit=True)
 
     if (not api):
-        print ("Can't Authenticate")
-        sys.exit(-1)
+        raise Exception("Can't Authenticate to API")
+        return None, False
 
 
     counter = 0
