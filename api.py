@@ -64,7 +64,7 @@ def deleteDB():
 
 if __name__ == "__main__":
     if DEBUG_MODE:
-        app.run(host="127.0.0.1", port=8080, debug=True)
+        app.run(host="127.0.0.1", port=8080, debug=True, ssl_context='adhoc')
     else:
-        #app.run(host="0.0.0.0", port=80, debug=True)
-        serve(app, host="0.0.0.0", port=80)
+        #app.run(host="0.0.0.0", port=80, debug=True, ssl_context='adhoc')
+        serve(app, host="0.0.0.0", port=80, url_scheme='https')

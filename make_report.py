@@ -23,20 +23,26 @@ def make_report(query):
         myquery = { "query": query }
         newvalues = { "$set": { "status": "Start fetching tweets", "code": return_codes.PROCESSING} }
         queries.update_one(myquery, newvalues)
-        
+
         print("query: ", query)
 
         try:
             df, ok = searchTweets(query, MIN_NB_TWEETS, MAX_NB_TWEETS)
-        except Exception e:
+        except Exception as e:
             myquery = { "query": query }
             newvalues = { "$set": { "status": str(e), "code": return_codes.ERROR} }
             queries.update_one(myquery, newvalues)
             return return_codes.ERROR
 
+        df = pd.read_csv("results/#test.csv", dtype=object, na_filter=False)
+
         if df is None:
             return return_codes.NO_CONTENT
+
         df.date = pd.to_datetime(df.date)
+        df.followers = pd.to_numeric(df.followers)
+        df.likes = pd.to_numeric(df.likes)
+        df.retweets = pd.to_numeric(df.retweets)
 
         print("search done", ok)
         print("total", df.shape[0])
@@ -52,13 +58,10 @@ def make_report(query):
         # Top tweet
         top_tweet = df[(df.retweet_from_user_id == "") & (df.reply_to_tweet_id == "")].sort_values(by=['retweets', 'likes', 'followers'], ascending=False).head(10).tweet_id.to_list()
         top_tweet
-        
+
         # Top Actors
-        df.followers = pd.to_numeric(df.followers)
-        df.likes = pd.to_numeric(df.followers)
-        df.retweets = pd.to_numeric(df.followers)
         top_actors = df.groupby('user_name').agg({
-            'followers': 'mean',
+            'followers': 'max',
             'likes':'sum',
             'retweets':'sum',
             'tweet_id':'count'
@@ -74,14 +77,16 @@ def make_report(query):
             hashtags = json.loads(row['hashtags'].replace("'","\""))
             for h in hashtags:
                 hashtag = h['text'].lower()
-                hashtags_freq.append({'date':row['date'], 'hashtag':hashtag})
+                if hashtag != query.lower().replace("#","",1):
+                    hashtags_freq.append({'date':row['date'], 'hashtag':hashtag})
 
         hashtags_freq_df = pd.DataFrame(hashtags_freq)
+        hashtags_top = hashtags_freq_df.groupby('hashtag').count().reset_index().rename(columns={'hashtag':'name', 'date':'value'}).sort_values(by='value', ascending=False).head(10).to_dict(orient="records")
         hashtags_freq_df.date = pd.to_datetime(hashtags_freq_df.date)
         hashtags_freq_df = hashtags_freq_df.set_index("date").groupby('hashtag').resample('1D').count().rename(columns={'hashtag':'count'}).reset_index()
-        cum_sum = hashtags_freq_df.set_index('date').groupby('hashtag').cumsum().reset_index()
-        cum_sum['hashtag'] = hashtags_freq_df.hashtag
-        cum_sum = cum_sum.to_dict(orient="records")
+        hashtags_cum_sum = hashtags_freq_df.set_index('date').groupby('hashtag').cumsum().reset_index()
+        hashtags_cum_sum['hashtag'] = hashtags_freq_df.hashtag
+        hashtags_cum_sum = hashtags_cum_sum.to_dict(orient="records")
 
         # Sentiment
         def clean_tweet(tweet):
@@ -206,7 +211,8 @@ def make_report(query):
                 'top_tweet': top_tweet,
                 'top_actors': top_actors,
                 'sentiment': sentiments,
-                'hahstags': cum_sum,
+                'hahstags_cum_sum': hashtags_cum_sum,
+                'hahstags_top_10': hashtags_top,
                 'graph': graph,
                 #'location': None,
         }
