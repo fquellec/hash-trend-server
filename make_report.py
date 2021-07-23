@@ -197,7 +197,12 @@ def make_report(query):
 
         graph = json_graph.node_link_data(largest_subgraph.to_undirected())
         # Location
-
+        #geolocator = Nominatim(user_agent="hash-trend app")    
+        #geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0)
+        #locations = df[df.location != ""].groupby('location').count().reset_index()[['location', 'tweet_id']]
+        #locations['geocode'] = df['location'].apply(partial(geocode, exactly_one=True, addressdetails=True))
+        #locations[locations.geocode.notnull()].tweet_id.sum()
+        #locations['country_code'] = df['geocode'].apply(lambda loc: loc.raw['address']['country_code'] if loc else None)
 
         # Generate json report
         result = {
