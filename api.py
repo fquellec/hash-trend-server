@@ -66,5 +66,5 @@ if __name__ == "__main__":
     if DEBUG_MODE:
         app.run(host="127.0.0.1", port=8080, debug=True, ssl_context='adhoc')
     else:
-        app.run(host="0.0.0.0", port=80, debug=True, ssl_context='adhoc')
+        app.run(host="0.0.0.0", port=80, debug=True, ssl_context=('cert.pem', 'key.pem'))
         #serve(app, host="0.0.0.0", port=80, url_scheme='https')
