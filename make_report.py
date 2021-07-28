@@ -10,6 +10,7 @@ import json
 import networkx as nx
 from networkx.readwrite import json_graph
 import return_codes
+from littleballoffur import PageRankBasedSampler
 
 MIN_NB_TWEETS = 100
 MAX_NB_TWEETS = 20000
@@ -188,12 +189,17 @@ def make_report(query):
                 yield G.subgraph(c)
 
         largest_subgraph = max(connected_component_subgraphs(graph.to_undirected()), key=len)
-
+        
         number_of_nodes = largest_subgraph.number_of_nodes()
         number_of_edges = largest_subgraph.number_of_edges()
-
+        
         print(f"There are {number_of_nodes} nodes and {number_of_edges} \
         edges present in the largest component of the Graph")
+        
+        # Sample the graph with maximum 4000 nodes
+        number_of_nodes = 4000
+        sampler = PageRankBasedSampler(number_of_nodes = number_of_nodes)
+        largest_subgraph = sampler.sample(largest_subgraph)
 
         graph = json_graph.node_link_data(largest_subgraph.to_undirected())
         # Location
