@@ -31,16 +31,17 @@ def handleQuery():
         #print(db_entry)
         return jsonify(db_entry), 200
     else:
+        job = q.enqueue(make_report, args=(query,), job_timeout='10m')
         query_db = {
             "query": query,
             "status": "Queuing job...",
             "code": 202,
             "result": {},
+            "job_id": str(job.id),
             "date": datetime.datetime.utcnow()
         }
         ret = query_db.copy()
         queries.insert_one(query_db)
-        job = q.enqueue(make_report, args=(query,), job_timeout='10m')
 
         return ret, 200
 

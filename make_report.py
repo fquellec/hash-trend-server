@@ -4,6 +4,7 @@ import credentials
 import pandas as pd
 import numpy as np
 from textblob import TextBlob
+from textblob_fr import PatternTagger, PatternAnalyzer
 import re
 import ast # Convert string list to list
 import json
@@ -11,9 +12,10 @@ import networkx as nx
 from networkx.readwrite import json_graph
 import return_codes
 from littleballoffur import PageRankBasedSampler
+import os
 
 MIN_NB_TWEETS = 100
-MAX_NB_TWEETS = 20000
+MAX_NB_TWEETS = 19999
 
 def make_report(query):
         client = pymongo.MongoClient(credentials.MONGO_URI)
@@ -34,8 +36,6 @@ def make_report(query):
             newvalues = { "$set": { "status": str(e), "code": return_codes.ERROR} }
             queries.update_one(myquery, newvalues)
             return return_codes.ERROR
-
-        df = pd.read_csv("results/#test.csv", dtype=object, na_filter=False)
 
         if df is None:
             return return_codes.NO_CONTENT
@@ -94,14 +94,14 @@ def make_report(query):
             return ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", " ", tweet).split())
 
         def get_tweet_sentiment(text):
-            analysis = TextBlob(clean_tweet(text))
+            analysis = TextBlob(clean_tweet(text), pos_tagger=PatternTagger(), analyzer=PatternAnalyzer())
             # set sentiment
-            if analysis.sentiment.polarity > 0:
+            if analysis.sentiment[0] > 0.2:
                 return "Positive"
-            elif analysis.sentiment.polarity == 0:
-                return "Neutral"
-            else:
+            elif analysis.sentiment[0] < 0:
                 return "Negative"
+            else:
+                return "Neutral"
 
         df['sentiment'] = df.text.apply(lambda t: get_tweet_sentiment(t))
         sentiments = df.groupby('sentiment').count().tweet_id.to_dict()
@@ -197,11 +197,27 @@ def make_report(query):
         edges present in the largest component of the Graph")
         
         # Sample the graph with maximum 4000 nodes
-        number_of_nodes = 4000
-        sampler = PageRankBasedSampler(number_of_nodes = number_of_nodes)
-        largest_subgraph = sampler.sample(largest_subgraph)
+        number_of_nodes_max = 300
+        largest_subgraph = nx.convert_node_labels_to_integers(largest_subgraph, label_attribute="tweet_id")
+        if number_of_nodes > number_of_nodes_max:
+            sampler = PageRankBasedSampler(number_of_nodes = number_of_nodes_max)
+            largest_subgraph = sampler.sample(largest_subgraph)
 
         graph = json_graph.node_link_data(largest_subgraph.to_undirected())
+
+        class CustomEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                else:
+                    return super(CustomEncoder, self).default(obj)
+
+        data_dict_1 = json.dumps(graph,cls=CustomEncoder)
+        graph  = json.loads(data_dict_1)
         # Location
         #geolocator = Nominatim(user_agent="hash-trend app")    
         #geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0)
@@ -227,7 +243,7 @@ def make_report(query):
                 'graph': graph,
                 #'location': None,
         }
-        result
+        print(result)
         print("report generated")
 
         # Update db
@@ -242,9 +258,19 @@ def make_report(query):
             code = return_codes.FINISH
             status = "Done"
 
-        newvalues = { "$set": { "result": result, "code": code, "status": status} }
-        queries.update_one(myquery, newvalues)
+        newvalues = { "$set": { "job_id": None, "result": result, "code": code, "status": status} }
+        try:
+            queries.update_one(myquery, newvalues)
+        except Exception as e:
+            myquery = { "query": query }
+            newvalues = { "$set": { "status": str(e), "code": return_codes.ERROR} }
+            queries.update_one(myquery, newvalues)
+            return return_codes.ERROR
 
         print("report updated")
+
+        filename = "results/" + query + ".csv"
+        if os.path.exists(filename):
+            os.remove(filename)
 
         return code
